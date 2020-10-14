@@ -9,7 +9,7 @@ WebServer server(80);
 char strTemp[12]="??";
 char strCO2[12]="??";
 char strMBar[12]="??";
-String strHP=
+const char *strHP=
 "<html><head>"
 "	<meta charset='utf-8' />"
 "	<title>EE895 Home</title>"

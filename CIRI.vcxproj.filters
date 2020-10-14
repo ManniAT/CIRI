@@ -27,9 +27,6 @@
     <ClInclude Include="MyDisplay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="WSElements.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="EE895.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -43,6 +40,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Beeper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="WSElements.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

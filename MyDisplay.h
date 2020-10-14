@@ -2,41 +2,54 @@
 //#include <Arduino.h>
 #include <SPI.h>
 
+
+
+// This is the file name used to store the calibration data
+// You can change this to create new calibration files.
+// The SPIFFS file name must start with "/".
+#define CALIBRATION_FILE "/TouchCalData1"
+
+// Set REPEAT_CAL to true instead of false to run calibration
+// again, otherwise it will only be done once.
+// Repeat calibration if you change the screen rotation.
+#define REPEAT_CAL true
+
+// Number length, buffer for storing it and character index
+#define NUM_LEN 12
+char numberBuffer[NUM_LEN + 1] = "";
+uint8_t numberIndex = 0;
+
 #define ILI9341_DRIVER
 //#define TFT_INVERSION_OFF
 
 // For ESP32 Dev board (only tested with ILI9341 display)
 // The hardware SPI can be mapped to any pins
 
-#define TFT_MISO 19
+#define TFT_CS   5  // Chip select control pin
+#define TFT_DC    4  // Data Command control pin
 #define TFT_MOSI 23
 #define TFT_SCLK 18
-//#define TFT_CS   15  // Chip select control pin
-#define TFT_CS   5  // Chip select control pin
-//#define TFT_DC    2  // Data Command control pin
-#define TFT_DC    4  // Data Command control pin
-//#define TFT_RST   4  // Reset pin (could connect to RST pin)
 #define TFT_RST   22  // Reset pin (could connect to RST pin)
-//#define TFT_RST  -1  // Set TFT_RST to -1 if display RESET is connected to ESP32 board RST
+#define TFT_MISO 19
 
-//#define TOUCH_CS 21     // Chip select pin (T_CS) of touch screen
-#define TOUCH_CS 24     // Chip select pin (T_CS) of touch screen
+//#define TOUCH_CS 14     // Chip select pin (T_CS) of touch screen
 
-//#define TFT_WR 22    // Write strobe for modified Raspberry Pi TFT only
 
 #define LOAD_GLCD   // Font 1. Original Adafruit 8 pixel font needs ~1820 bytes in FLASH
 #define LOAD_FONT2  // Font 2. Small 16 pixel high font, needs ~3534 bytes in FLASH, 96 characters
 #define LOAD_FONT4  // Font 4. Medium 26 pixel high font, needs ~5848 bytes in FLASH, 96 characters
 #define LOAD_FONT6  // Font 6. Large 48 pixel font, needs ~2666 bytes in FLASH, only characters 1234567890:-.apm
-#define LOAD_FONT7  // Font 7. 7 segment 48 pixel font, needs ~2438 bytes in FLASH, only characters 1234567890:.
-#define LOAD_FONT8  // Font 8. Large 75 pixel font needs ~3256 bytes in FLASH, only characters 1234567890:-.
+//#define LOAD_FONT7  // Font 7. 7 segment 48 pixel font, needs ~2438 bytes in FLASH, only characters 1234567890:.
+//#define LOAD_FONT8  // Font 8. Large 75 pixel font needs ~3256 bytes in FLASH, only characters 1234567890:-.
 #define LOAD_GFXFF  // FreeFonts. Include access to the 48 Adafruit_GFX free fonts FF1 to FF48 and custom fonts
 
 // Comment out the #define below to stop the SPIFFS filing system and smooth font code being loaded
 // this will save ~20kbytes of FLASH
+//keep this line - else it crashes
 #define SMOOTH_FONT
 
 // #define SPI_FREQUENCY  20000000
+					   
 #define SPI_FREQUENCY  27000000
 // #define SPI_FREQUENCY  40000000
 // #define SPI_FREQUENCY  55000000 // STM32 SPI1 only (SPI2 maximum is 27MHz)
@@ -167,13 +180,17 @@ private:
 		tft.print(pUnit);
 		xSemaphoreGive(_LockMutex);
 	}
-	void WriteUnknown(bool pUseMutex) { WriteState(BadX, ILI9341_GRAY, ILI9341_WHITE, "???", pUseMutex); }
+	void WriteUnknown(bool pUseMutex) { WriteState(BadX, ILI9341_DARKGREY, ILI9341_BLUE, "???", pUseMutex); }
 	void WritePerfect(bool pUseMutex) { WriteState(PerfectX, ILI9341_GREEN, ILI9341_BLACK, "PERFECT", pUseMutex); }
 	void WriteGood(bool pUseMutex) { WriteState(GoodX, ILI9341_YELLOW, ILI9341_BLACK, "GOOD", pUseMutex); }
 	void WriteBad(bool pUseMutex) { WriteState(BadX, ILI9341_ORANGE, ILI9341_BLACK, "BAD", pUseMutex); }
 	void WriteAlert(bool pUseMutex) { WriteState(AlertX, ILI9341_RED, ILI9341_WHITE, "ALERT", pUseMutex); }
 	void WriteState(FSMState pState);
 	void WriteStateWithSetMutex(FSMState pState);
+
+	// Calibrate the touch screen and retrieve the scaling factors
+	//void touch_calibrate();
+
 public:
 	void SetDisplayBacklight(Brightness pBright) { ledcWrite(TFT_LED_CHANNEL, 255 - (byte)pBright); }
 	void SetDisplayBacklight(byte  pLevel) { SetDisplayBacklight((Brightness)pLevel); }
@@ -191,6 +208,8 @@ public:
 		tft.fillScreen(ILI9341_BLACK);
 		tft.setRotation(rotation);
 		_LockMutex = xSemaphoreCreateMutex();
+		//touch_calibrate();
+		//return;
 		WriteUnknown(false);
 		DrawKeyFirst();
 	}
@@ -225,7 +244,7 @@ inline void MyDisplay::WriteCO2WithSetMutex(short pValue)
 	tft.setTextFont(6);
 	tft.printf(buffer);
 	tft.setTextSize(2);
-	tft.setTextFont(0);
+	tft.setTextFont(1);
 	tft.setCursor(tft.getCursorX() + 3, CO2Y + CO2UnitYOffset);
 	tft.print("ppm");
 }
@@ -259,6 +278,7 @@ void MyDisplay::WriteStateWithSetMutex(FSMState pState) {
 		return;
 	}
 }
+
 void MyDisplay::WriteCO2(short pValue) {
 	if ((xSemaphoreTake(_LockMutex, portTICK_PERIOD_MS * 500)) != pdTRUE) {
 		Serial.println("Got no mutex in WriteCO2");
@@ -273,6 +293,7 @@ void MyDisplay::WriteCO2(FSMState pState, short pValue) {
 		Serial.println("Got no mutex in WriteCO2");
 		return;
 	}
+	WriteStateWithSetMutex(pState);
 	WriteCO2WithSetMutex(pValue);
 	xSemaphoreGive(_LockMutex);
 }
@@ -292,6 +313,32 @@ void MyDisplay::WriteTemp(float pValue, const char* pUnit) {
 	tft.setCursor(tft.getCursorX() + 2, TemperatureY + TemperatureUnitYOffset);
 	tft.setTextSize(1);
 	tft.setTextFont(2);
-	tft.printf("`%s", pUnit);	//use degree encoder
+	String strUnit = pUnit;
+	strUnit.replace("°", "`");	//use degree encoder
+	tft.print(strUnit);
 	xSemaphoreGive(_LockMutex);
+}
+
+#define TS_MINX 230
+#define TS_MINY 350
+#define TS_MAXX 3700
+#define TS_MAXY 3900
+uint8_t rot = 1;
+int16_t tsx;
+int16_t tsy;
+void MapTouch(int16_t tsxraw, int16_t tsyraw) {
+	switch (rot) {
+	case 0: tsx = map(tsyraw, TS_MINY, TS_MAXY, 240, 0);
+		tsy = map(tsxraw, TS_MINX, TS_MAXX, 0, 320);
+		break;
+	case 1: tsx = map(tsxraw, TS_MINX, TS_MAXX, 0, 320);
+		tsy = map(tsyraw, TS_MINY, TS_MAXX, 0, 240);
+		break;
+	case 2: tsx = map(tsyraw, TS_MINY, TS_MAXY, 0, 240);
+		tsy = map(tsxraw, TS_MINX, TS_MAXX, 320, 0);
+		break;
+	case 3: tsx = map(tsxraw, TS_MINX, TS_MAXX, 320, 0);
+		tsy = map(tsyraw, TS_MINY, TS_MAXY, 240, 0);
+		break;
+	}
 }

@@ -53,29 +53,37 @@ public:
 };
 bool FSM::SetValue(short pNewValue) {
 	if (_CurValue == pNewValue) {
+        Serial.print("SAME value");
 		return(false);	//nothing changed
 	}
 	_CurValue = pNewValue;
 	FSMState sForNewValue = GetValueStatue(pNewValue);
 	if (sForNewValue == _CurState) {	//still the same
+        Serial.print("SAME State");
 		return(false);
 	}
 	if (sForNewValue > _CurState) {	//becoming worse (or UNKNOWN >> GOOD)- no check needed
+        Serial.print(sForNewValue);
 		_CurState = sForNewValue;
 		return(true);
 	}
 	if (_CurValue <= _PerfectReset) {	//going down - check for reset (hysteresis) from top to bottom (can bypass some states if going down fast) 
+        Serial.print("PERF RESET");
 		_CurState = sForNewValue;
 		return(true);
 	}
 	if (_CurValue <= _GoodReset) {
+        Serial.print("GOOD RESET");
+        Serial.print(sForNewValue);
 		_CurState = sForNewValue;
 		return(true);
 	}
 	if (_CurValue <= _BadReset) {
+        Serial.print("BAD RESET");
 		_CurState = sForNewValue;
 		return(true);
 	}
+    Serial.print("END FSM");
 	return(false);	//not going down due to hysteresis
 }
 
