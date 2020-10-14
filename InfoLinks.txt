@@ -17,3 +17,10 @@ https://github.com/Bodmer/TFT_eSPI
 https://randomnerdtutorials.com/esp32-pwm-arduino-ide/
 
 https://github.com/ManniAT/CIRI
+
+REBASE SCRIPT
+git branch tmp_branch $(echo "Removed History" | git commit-tree HEAD^{tree})
+git checkout tmp_branch
+git branch -D main
+git branch -m main
+git push -f --set-upstream origin main

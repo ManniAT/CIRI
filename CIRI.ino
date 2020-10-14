@@ -13,6 +13,7 @@
 #include "./MyDisplay.h"
 #include "./EE895.h"
 #include "./FSM.h"
+#include "./Beeper.h"
 #include "./credentials.h"
 
 int freq = 2000;
@@ -144,32 +145,12 @@ void ReadEE895Task(void* parameter) {
 }
 
 void IRAM_ATTR dataReady() {
-	//Serial.println("DataReady");
 	BaseType_t xHigherPriorityTaskWoken;
-
-	/* Clear the interrupt. */
-	//prvClearInterruptSource();
-
-	/* xHigherPriorityTaskWoken must be initialised to pdFALSE.
-	If calling vTaskNotifyGiveFromISR() unblocks the handling
-	task, and the priority of the handling task is higher than
-	the priority of the currently running task, then
-	xHigherPriorityTaskWoken will be automatically set to pdTRUE. */
 	xHigherPriorityTaskWoken = pdFALSE;
-
-	/* Unblock the handling task so the task can perform any processing
-	necessitated by the interrupt.  xHandlingTask is the task's handle, which was
-	obtained when the task was created.  vTaskNotifyGiveFromISR() also increments
-	the receiving task's notification value. */
 	vTaskNotifyGiveFromISR(_EE950ReadTask, &xHigherPriorityTaskWoken);
-
-	/* Force a context switch if xHigherPriorityTaskWoken is now set to pdTRUE.
-	The macro used to do this is dependent on the port and may be called
-	portEND_SWITCHING_ISR. */
 	if (xHigherPriorityTaskWoken == pdTRUE) {
 		portYIELD_FROM_ISR();
 	}
-	//portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 void Task1code(void* parameter)

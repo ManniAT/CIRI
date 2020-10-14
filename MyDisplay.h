@@ -2,10 +2,8 @@
 //#include <Arduino.h>
 #include <SPI.h>
 
-
 #define ILI9341_DRIVER
 //#define TFT_INVERSION_OFF
-
 
 // For ESP32 Dev board (only tested with ILI9341 display)
 // The hardware SPI can be mapped to any pins
@@ -38,7 +36,6 @@
 // this will save ~20kbytes of FLASH
 #define SMOOTH_FONT
 
-
 // #define SPI_FREQUENCY  20000000
 #define SPI_FREQUENCY  27000000
 // #define SPI_FREQUENCY  40000000
@@ -57,7 +54,6 @@
 #include "./Brightness.h"
 #include "./FSMState.h"
 
-
 //320x240
 TFT_eSPI tft = TFT_eSPI();
 //XPT2046_Touchscreen touch(TOUCH_CS, TOUCH_IRQ);
@@ -71,7 +67,7 @@ TFT_eSPI_Button key[4];
 #define KEY_H 60
 #define KEY_H2 60
 #define KEY_SPACING_X 12 // X and Y gap
-#define KEY_SPACING_X2 18 
+#define KEY_SPACING_X2 18
 #define KEY_SPACING_Y 20
 #define KEY_TEXTSIZE 1   // Font size multiplier
 #define KEY_YOFFS	85
@@ -81,9 +77,7 @@ TFT_eSPI_Button key[4];
 #define TFT_LED_FREQU 5000
 #define TFT_LED_CHANNEL 2
 
-
 const char* DATE_TIME_FORMAT = "%e.%b.%Y      %H:%M:%S";
-
 
 class MyDisplay {
 private:
@@ -110,7 +104,7 @@ private:
 	void DrawKeyFirst() {
 		uint8_t row = 0;
 		uint8_t col = 0;
-		
+
 		tft.setFreeFont(&FreeSansBold12pt7b);
 
 		key[0].initButton(&tft, KEY_X + col * (KEY_W + KEY_SPACING_X),
@@ -168,21 +162,23 @@ private:
 		tft.printf("%.01f", pValue);
 		tft.setTextSize(1);
 		tft.setTextFont(2);
-		tft.setCursor(tft.getCursorX()+1, PressureY + pUnitOffset);
+		tft.setCursor(tft.getCursorX() + 1, PressureY + pUnitOffset);
 
 		tft.print(pUnit);
 		xSemaphoreGive(_LockMutex);
 	}
-	void WriteUnknown(bool pUseMutex) { WriteState(BadX, ILI9341_GRAY, ILI9341_WHITE, "???"); }
-	void WritePerfect(bool pUseMutex) { WriteState(PerfectX, ILI9341_GREEN, ILI9341_BLACK, "PERFECT"); }
-	void WriteGood(bool pUseMutex) { WriteState(GoodX, ILI9341_YELLOW, ILI9341_BLACK, "GOOD"); }
-	void WriteBad(bool pUseMutex) { WriteState(BadX, ILI9341_ORANGE, ILI9341_BLACK, "BAD"); }
-	void WriteAlert(bool pUseMutex) { WriteState(AlertX, ILI9341_RED, ILI9341_WHITE, "ALERT"); }
+	void WriteUnknown(bool pUseMutex) { WriteState(BadX, ILI9341_GRAY, ILI9341_WHITE, "???", pUseMutex); }
+	void WritePerfect(bool pUseMutex) { WriteState(PerfectX, ILI9341_GREEN, ILI9341_BLACK, "PERFECT", pUseMutex); }
+	void WriteGood(bool pUseMutex) { WriteState(GoodX, ILI9341_YELLOW, ILI9341_BLACK, "GOOD", pUseMutex); }
+	void WriteBad(bool pUseMutex) { WriteState(BadX, ILI9341_ORANGE, ILI9341_BLACK, "BAD", pUseMutex); }
+	void WriteAlert(bool pUseMutex) { WriteState(AlertX, ILI9341_RED, ILI9341_WHITE, "ALERT", pUseMutex); }
+	void WriteState(FSMState pState);
+	void WriteStateWithSetMutex(FSMState pState);
 public:
 	void SetDisplayBacklight(Brightness pBright) { ledcWrite(TFT_LED_CHANNEL, 255 - (byte)pBright); }
 	void SetDisplayBacklight(byte  pLevel) { SetDisplayBacklight((Brightness)pLevel); }
-	void WriteState(FSMState pState);
 	void WriteCO2(short pValue);
+	void WriteCO2(FSMState pState, short pValue);
 	void WriteTemp(float pValue, const char* pUnit);
 	void WritePressurePSI(float pValue) { WritePressure(pValue, "PSI", PressurePSIYOffset); }
 	void WritePressureMBar(float pValue) { WritePressure(pValue, "mbar", PressureMBarYOffset); }
@@ -195,7 +191,7 @@ public:
 		tft.fillScreen(ILI9341_BLACK);
 		tft.setRotation(rotation);
 		_LockMutex = xSemaphoreCreateMutex();
-		WritePerfect();
+		WriteUnknown(false);
 		DrawKeyFirst();
 	}
 };
@@ -210,10 +206,9 @@ void MyDisplay::WriteTimeAndDate(struct tm* timeinfo)
 	tft.setTextSize(2);
 	tft.setTextFont(1);
 	tft.print(timeinfo, DATE_TIME_FORMAT);
-	
+
 	xSemaphoreGive(_LockMutex);
 }
-
 
 inline void MyDisplay::WriteCO2WithSetMutex(short pValue)
 {
@@ -240,6 +235,11 @@ void MyDisplay::WriteState(FSMState pState) {
 		Serial.println("Got no mutex in WriteState");
 		return;
 	}
+	WriteStateWithSetMutex(pState);
+	xSemaphoreGive(_LockMutex);
+}
+
+void MyDisplay::WriteStateWithSetMutex(FSMState pState) {
 	switch (pState) {
 	case FSMState::PERFECT:
 		WritePerfect(false);
@@ -258,9 +258,7 @@ void MyDisplay::WriteState(FSMState pState) {
 		WriteUnknown(false);
 		return;
 	}
-	xSemaphoreGive(_LockMutex);
 }
-
 void MyDisplay::WriteCO2(short pValue) {
 	if ((xSemaphoreTake(_LockMutex, portTICK_PERIOD_MS * 500)) != pdTRUE) {
 		Serial.println("Got no mutex in WriteCO2");
@@ -270,9 +268,18 @@ void MyDisplay::WriteCO2(short pValue) {
 	xSemaphoreGive(_LockMutex);
 }
 
-void MyDisplay::WriteTemp(float pValue, const char*pUnit) {
+void MyDisplay::WriteCO2(FSMState pState, short pValue) {
+	if ((xSemaphoreTake(_LockMutex, portTICK_PERIOD_MS * 500)) != pdTRUE) {
+		Serial.println("Got no mutex in WriteCO2");
+		return;
+	}
+	WriteCO2WithSetMutex(pValue);
+	xSemaphoreGive(_LockMutex);
+}
+
+void MyDisplay::WriteTemp(float pValue, const char* pUnit) {
 	char buffer[10];
-	sprintf(buffer,"%.01f", pValue);
+	sprintf(buffer, "%.01f", pValue);
 	if ((xSemaphoreTake(_LockMutex, portTICK_PERIOD_MS * 500)) != pdTRUE) {
 		Serial.println("Got no mutex in WriteTimeAndDate");
 		return;

@@ -42,6 +42,9 @@
     <ClInclude Include="FSMState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Beeper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="InfoLinks.txt" />
