@@ -1,0 +1,28 @@
+﻿## Ignore VS code  temporary files, build results, and so forth
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# User-specific files (MonoDevelop/Xamarin Studio)
+*.userprefs
+
+# VS cache/options directory
+.vs/
+#keep vscode options (contains important files)
+#.vscode
+#arduino
+
+#vmicro
+__vm/
+build/
+release/
+/Debug
+
+#credentials file
+credentials.h
+
+
