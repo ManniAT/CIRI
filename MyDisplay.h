@@ -32,6 +32,7 @@ uint8_t numberIndex = 0;
 #define TFT_RST   22  // Reset pin (could connect to RST pin)
 #define TFT_MISO 19
 
+//avoid loading of touch code by not defining the TOUCH_CS
 //#define TOUCH_CS 14     // Chip select pin (T_CS) of touch screen
 
 
@@ -42,6 +43,24 @@ uint8_t numberIndex = 0;
 //#define LOAD_FONT7  // Font 7. 7 segment 48 pixel font, needs ~2438 bytes in FLASH, only characters 1234567890:.
 //#define LOAD_FONT8  // Font 8. Large 75 pixel font needs ~3256 bytes in FLASH, only characters 1234567890:-.
 #define LOAD_GFXFF  // FreeFonts. Include access to the 48 Adafruit_GFX free fonts FF1 to FF48 and custom fonts
+//would load a number of fonts - to keep it small only load the one we want
+#define _GFXFONT_H_	//simulate included font headers
+//unfortunately this is also defined in the "load all free fonts header
+typedef struct { // Data stored PER GLYPH
+	uint32_t bitmapOffset;     // Pointer into GFXfont->bitmap
+	uint8_t  width, height;    // Bitmap dimensions in pixels
+	uint8_t  xAdvance;         // Distance to advance cursor (x axis)
+	int8_t   xOffset, yOffset; // Dist from cursor pos to UL corner
+} GFXglyph;
+
+typedef struct { // Data stored for FONT AS A WHOLE:
+	uint8_t* bitmap;      // Glyph bitmaps, concatenated
+	GFXglyph* glyph;       // Glyph array
+	uint16_t  first, last; // ASCII extents
+	uint8_t   yAdvance;    // Newline distance (y axis)
+} GFXfont;
+//use the local copy of the one and only used font
+#include "./FreeSansBold12pt7b.h" // FF26 or FSSB12
 
 // Comment out the #define below to stop the SPIFFS filing system and smooth font code being loaded
 // this will save ~20kbytes of FLASH
