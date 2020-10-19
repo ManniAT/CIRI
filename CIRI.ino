@@ -11,7 +11,7 @@
 #include "time.h"
 #include "./WSElements.h"
 //#include "./ModbusHelper.h"
-//#include "./MyDisplay.h"
+#include "./MyDisplay.h"
 #include "./EE895.h"
 #include "./FSM.h"
 #include "./Beeper.h"
@@ -36,7 +36,7 @@ const int HWSERIAL_NUM = 2;
 #define TOUCH_IRQ 2
 
 
-//MyDisplay TheDisplay;
+MyDisplay TheDisplay;
 FSM SMachine(680, 720, 750, 10);
 
 const char* host = "esp32";
@@ -101,7 +101,7 @@ void HandleNewValues() {
 		PSClient.publish("EE895/TempC", bufferTemp);
 		Serial.printf("Temp: %s C°\n", bufferTemp);
 		PlayTone(ToneLow, 800);
-		//TheDisplay.WriteTemp(_EE895Data->TempC,"°C");
+		TheDisplay.WriteTemp(_EE895Data->TempC,"°C");
 
 	}
 	if (_EE895Data->PressureMBar_Changed)
@@ -110,7 +110,7 @@ void HandleNewValues() {
 		PSClient.publish("EE895/MBar", bufferMBar);
 		Serial.printf("MBar: %s\n", bufferMBar);
 		PlayTone(ToneHigh, 800);
-		//TheDisplay.WritePressureMBar(_EE895Data->PressureMBar);
+		TheDisplay.WritePressureMBar(_EE895Data->PressureMBar);
 	}
 	if (_EE895Data->CO2_Changed)
 	{
@@ -119,13 +119,13 @@ void HandleNewValues() {
 		Serial.printf("CO2: %s\n", bufferCO2);
 		PlayTone(ToneDefault, 800);
 		if (SMachine.SetValue(_EE895Data->CO2)) {
-			//TheDisplay.WriteCO2(SMachine.CurState, _EE895Data->CO2);
+			TheDisplay.WriteCO2(SMachine.CurState, _EE895Data->CO2);
 		}
 		else {
-			//TheDisplay.WriteCO2(_EE895Data->CO2);
+			TheDisplay.WriteCO2(_EE895Data->CO2);
 		}
 	}
-	//SetHPValues(_EE895Data->TempC, _EE895Data->PressureMBar, _EE895Data->CO2);
+	SetHPValues(_EE895Data->TempC, _EE895Data->PressureMBar, _EE895Data->CO2);
 }
 //#define pdMS_TO_TICKS(xTimeInMs) ((TickType_t)(((TickType_t)(xTimeInMs) * (TickType_t)configTICK_RATE_HZ) / (TickType_t)1000))
 
@@ -155,7 +155,6 @@ void ReadEE895Task(void* parameter) {
 }
 
 void IRAM_ATTR dataReady() {
-	return;
 	BaseType_t xHigherPriorityTaskWoken;
 	xHigherPriorityTaskWoken = pdFALSE;
 	vTaskNotifyGiveFromISR(_EE950ReadTask, &xHigherPriorityTaskWoken);
@@ -177,7 +176,7 @@ void PlayTone(int pTone, int pDuration) {
 
 void setup(void) {
 	Serial.begin(115200);
-	//TheDisplay.Init();
+	TheDisplay.Init();
 	//touch.begin();
 	//touch.setRotation(1);
 
@@ -228,7 +227,7 @@ void setup(void) {
 
 	Serial.println("mDNS responder started");
 	InitOTAServer();
-	//StartWebServer();
+
 	//if (PSClient.connect("arduinoClient", "testuser", "testpass"))	{
 //		PSClient.publish("outTopic", "ON");
 		//PSClient.subscribe("inTopic");
@@ -251,15 +250,6 @@ void setup(void) {
 	Serial.println("Tone off");
 	//PlayTones();
 
-	//xTaskCreatePinnedToCore(
-	//	Task1code, /* Function to implement the task */
-	//	"Task1",   /* Name of the task */
-	//	10000,	 /* Stack size in words */
-	//	NULL,	  /* Task input parameter */
-	//	0,		   /* Priority of the task */
-	//	&Task1,	/* Task handle. */
-	//	0);		   /* Core where the task should run */
-
 	xTaskCreatePinnedToCore(
 		ReadEE895Task,		 // Function that should be called
 		"EE895ReadTask", // Name of the task (for debugging)
@@ -272,7 +262,7 @@ void setup(void) {
 	Serial.println(_EE895->SetCO2Interval(10));
 	pinMode(25, INPUT_PULLUP);
 	attachInterrupt(digitalPinToInterrupt(25), dataReady, FALLING);
-	//TheDisplay.SetDisplayBacklight(Brightness::LOW_6);
+	TheDisplay.SetDisplayBacklight(Brightness::LOW_6);
 }
 
 boolean reconnect()

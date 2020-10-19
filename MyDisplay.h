@@ -40,27 +40,27 @@ uint8_t numberIndex = 0;
 #define LOAD_FONT2  // Font 2. Small 16 pixel high font, needs ~3534 bytes in FLASH, 96 characters
 #define LOAD_FONT4  // Font 4. Medium 26 pixel high font, needs ~5848 bytes in FLASH, 96 characters
 #define LOAD_FONT6  // Font 6. Large 48 pixel font, needs ~2666 bytes in FLASH, only characters 1234567890:-.apm
-//#define LOAD_FONT7  // Font 7. 7 segment 48 pixel font, needs ~2438 bytes in FLASH, only characters 1234567890:.
-//#define LOAD_FONT8  // Font 8. Large 75 pixel font needs ~3256 bytes in FLASH, only characters 1234567890:-.
-#define LOAD_GFXFF  // FreeFonts. Include access to the 48 Adafruit_GFX free fonts FF1 to FF48 and custom fonts
+#define LOAD_FONT7  // Font 7. 7 segment 48 pixel font, needs ~2438 bytes in FLASH, only characters 1234567890:.
+#define LOAD_FONT8  // Font 8. Large 75 pixel font needs ~3256 bytes in FLASH, only characters 1234567890:-.
+//#define LOAD_GFXFF  // FreeFonts. Include access to the 48 Adafruit_GFX free fonts FF1 to FF48 and custom fonts
 //would load a number of fonts - to keep it small only load the one we want
-#define _GFXFONT_H_	//simulate included font headers
-//unfortunately this is also defined in the "load all free fonts header
-typedef struct { // Data stored PER GLYPH
-	uint32_t bitmapOffset;     // Pointer into GFXfont->bitmap
-	uint8_t  width, height;    // Bitmap dimensions in pixels
-	uint8_t  xAdvance;         // Distance to advance cursor (x axis)
-	int8_t   xOffset, yOffset; // Dist from cursor pos to UL corner
-} GFXglyph;
-
-typedef struct { // Data stored for FONT AS A WHOLE:
-	uint8_t* bitmap;      // Glyph bitmaps, concatenated
-	GFXglyph* glyph;       // Glyph array
-	uint16_t  first, last; // ASCII extents
-	uint8_t   yAdvance;    // Newline distance (y axis)
-} GFXfont;
-//use the local copy of the one and only used font
-#include "./FreeSansBold12pt7b.h" // FF26 or FSSB12
+//#define _GFXFONT_H_	//simulate included font headers
+////unfortunately this is also defined in the "load all free fonts header
+//typedef struct { // Data stored PER GLYPH
+//	uint32_t bitmapOffset;     // Pointer into GFXfont->bitmap
+//	uint8_t  width, height;    // Bitmap dimensions in pixels
+//	uint8_t  xAdvance;         // Distance to advance cursor (x axis)
+//	int8_t   xOffset, yOffset; // Dist from cursor pos to UL corner
+//} GFXglyph;
+////
+//typedef struct { // Data stored for FONT AS A WHOLE:
+//	uint8_t* bitmap;      // Glyph bitmaps, concatenated
+//	GFXglyph* glyph;       // Glyph array
+//	uint16_t  first, last; // ASCII extents
+//	uint8_t   yAdvance;    // Newline distance (y axis)
+//} GFXfont;
+////use the local copy of the one and only used font
+//#include "./FreeSansBold12pt7b.h" // FF26 or FSSB12
 
 // Comment out the #define below to stop the SPIFFS filing system and smooth font code being loaded
 // this will save ~20kbytes of FLASH
@@ -79,7 +79,7 @@ typedef struct { // Data stored for FONT AS A WHOLE:
 #define SPI_READ_FREQUENCY  16000000
 
 // The XPT2046 requires a lower SPI clock rate of 2.5MHz so we define that here:
-#define SPI_TOUCH_FREQUENCY  2500000
+//#define SPI_TOUCH_FREQUENCY  2500000
 //ensure our settings take place
 #define USER_SETUP_LOADED
 #include <TFT_eSPI.h>
@@ -90,7 +90,7 @@ typedef struct { // Data stored for FONT AS A WHOLE:
 TFT_eSPI tft = TFT_eSPI();
 //XPT2046_Touchscreen touch(TOUCH_CS, TOUCH_IRQ);
 
-TFT_eSPI_Button key[4];
+//TFT_eSPI_Button key[4];
 
 // Keypad start position, key sizes and spacing
 #define KEY_X 40 // Centre of key
@@ -133,6 +133,7 @@ private:
 	const int PressureY = 60;
 	const int PressureMBarYOffset = 6;
 	const int PressurePSIYOffset = 5;
+#if false
 	void DrawKeyFirst() {
 		uint8_t row = 0;
 		uint8_t col = 0;
@@ -163,6 +164,7 @@ private:
 			"F", KEY_TEXTSIZE);
 		key[3].drawButton();
 	}
+#endif
 	SemaphoreHandle_t _LockMutex;
 	void WriteState(int16_t pXPos, uint16_t pBackColor, uint16_t pTextColor, const char* pText, bool pUseMutex) {
 		if (pUseMutex) {
@@ -177,6 +179,7 @@ private:
 		tft.setTextSize(2);
 		tft.setTextFont(4);
 		tft.print(pText);
+		Serial.println("State set");
 		if (pUseMutex) {
 			xSemaphoreGive(_LockMutex);
 		}
@@ -204,11 +207,7 @@ private:
 	void WriteGood(bool pUseMutex) { WriteState(GoodX, ILI9341_YELLOW, ILI9341_BLACK, "GOOD", pUseMutex); }
 	void WriteBad(bool pUseMutex) { WriteState(BadX, ILI9341_ORANGE, ILI9341_BLACK, "BAD", pUseMutex); }
 	void WriteAlert(bool pUseMutex) { WriteState(AlertX, ILI9341_RED, ILI9341_WHITE, "ALERT", pUseMutex); }
-	void WriteState(FSMState pState);
 	void WriteStateWithSetMutex(FSMState pState);
-
-	// Calibrate the touch screen and retrieve the scaling factors
-	//void touch_calibrate();
 
 public:
 	void SetDisplayBacklight(Brightness pBright) { ledcWrite(TFT_LED_CHANNEL, 255 - (byte)pBright); }
@@ -227,10 +226,8 @@ public:
 		tft.fillScreen(ILI9341_BLACK);
 		tft.setRotation(rotation);
 		_LockMutex = xSemaphoreCreateMutex();
-		//touch_calibrate();
-		//return;
 		WriteUnknown(false);
-		DrawKeyFirst();
+		//DrawKeyFirst();
 	}
 };
 void MyDisplay::WriteTimeAndDate(struct tm* timeinfo)
@@ -266,15 +263,6 @@ inline void MyDisplay::WriteCO2WithSetMutex(short pValue)
 	tft.setTextFont(1);
 	tft.setCursor(tft.getCursorX() + 3, CO2Y + CO2UnitYOffset);
 	tft.print("ppm");
-}
-
-void MyDisplay::WriteState(FSMState pState) {
-	if ((xSemaphoreTake(_LockMutex, portTICK_PERIOD_MS * 500)) != pdTRUE) {
-		Serial.println("Got no mutex in WriteState");
-		return;
-	}
-	WriteStateWithSetMutex(pState);
-	xSemaphoreGive(_LockMutex);
 }
 
 void MyDisplay::WriteStateWithSetMutex(FSMState pState) {
