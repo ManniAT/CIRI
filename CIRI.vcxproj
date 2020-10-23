@@ -116,6 +116,7 @@
     </ClInclude>
     <ClInclude Include="FSM.h" />
     <ClInclude Include="FSMState.h" />
+    <ClInclude Include="MyButton.h" />
     <ClInclude Include="MyDisplay.h">
       <FileType>CppCode</FileType>
     </ClInclude>
@@ -124,6 +125,9 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="InfoLinks.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="MyButton.cpp" />
   </ItemGroup>
   <PropertyGroup>
     <DebuggerFlavor>VisualMicroDebugger</DebuggerFlavor>

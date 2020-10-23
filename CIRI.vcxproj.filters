@@ -45,8 +45,16 @@
     <ClInclude Include="WSElements.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MyButton.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="InfoLinks.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="MyButton.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

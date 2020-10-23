@@ -17,24 +17,14 @@
 #include "./Beeper.h"
 #include "./credentials.h"
 
-int freq = 2000;
-int channel = 1;
-int resolution = 8;
-
-int ToneLow = 1555;
-int ToneMediume = 2222;
-int ToneDefault = 4444;
-int ToneHigh = 7777;
-int IsMuted = true;
-
 const uint8_t RX_PIN = 27;
 const uint8_t TX_PIN = 26;
 const int HWSERIAL_NUM = 2;
 
-
-#define TOUCH_CS 14
-#define TOUCH_IRQ 2
-
+//#define TOUCH_CS 14
+//#define TOUCH_IRQ 2
+#define	BEEPER_CHANNEL 1
+#define BEEPER_PIN 21
 
 MyDisplay TheDisplay;
 FSM SMachine(680, 720, 750, 10);
@@ -57,29 +47,25 @@ TaskHandle_t _EE950ReadTask;
 IPAddress serverIP(10, 1, 1, 60);
 uint16_t portMQTT = 1883;
 bool _StartTask = false;
+Beeper _Beeper(BEEPER_CHANNEL, BEEPER_PIN);
 
 WiFiClient wClient;
 
-void PlayTone(int pTone, int pDuration);
-void printLocalTime()
-{
+void printLocalTime() {
 	struct tm timeinfo;
-	if (!getLocalTime(&timeinfo))
-	{
+	if (!getLocalTime(&timeinfo)) {
 		Serial.println("Failed to obtain time");
 		return;
 	}
-	
+
 	Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 }
 
-void callback(char* topic, byte* payload, unsigned int length)
-{
+void callback(char* topic, byte* payload, unsigned int length) {
 	Serial.print("Message arrived [");
 	Serial.print(topic);
 	Serial.print("] ");
-	for (int i = 0; i < length; i++)
-	{
+	for (int i = 0; i < length; i++) {
 		Serial.print((char)payload[i]);
 	}
 	Serial.println();
@@ -95,29 +81,25 @@ void HandleNewValues() {
 	if (!_EE895->ReadDataValues(_EE895Data)) {	//transfer data to buffer
 		return;
 	}
-	if (_EE895Data->TempC_Changed)
-	{
+	if (_EE895Data->TempC_Changed) {
 		sprintf(bufferTemp, "%.1f", _EE895Data->TempC);
 		PSClient.publish("EE895/TempC", bufferTemp);
 		Serial.printf("Temp: %s C°\n", bufferTemp);
-		PlayTone(ToneLow, 800);
-		TheDisplay.WriteTemp(_EE895Data->TempC,"°C");
-
+		_Beeper.Beep(Tone::LOW_F, 800);
+		TheDisplay.WriteTemp(_EE895Data->TempC, "°C");
 	}
-	if (_EE895Data->PressureMBar_Changed)
-	{
+	if (_EE895Data->PressureMBar_Changed) {
 		sprintf(bufferMBar, "%.1f", _EE895Data->PressureMBar);
 		PSClient.publish("EE895/MBar", bufferMBar);
 		Serial.printf("MBar: %s\n", bufferMBar);
-		PlayTone(ToneHigh, 800);
+		_Beeper.Beep(Tone::HIGH_F, 800);
 		TheDisplay.WritePressureMBar(_EE895Data->PressureMBar);
 	}
-	if (_EE895Data->CO2_Changed)
-	{
+	if (_EE895Data->CO2_Changed) {
 		sprintf(bufferCO2, "%d", _EE895Data->CO2);
 		PSClient.publish("EE895/CO2", bufferCO2);
 		Serial.printf("CO2: %s\n", bufferCO2);
-		PlayTone(ToneDefault, 800);
+		_Beeper.Beep(Tone::DEFAULT_F, 800);
 		if (SMachine.SetValue(_EE895Data->CO2)) {
 			TheDisplay.WriteCO2(SMachine.CurState, _EE895Data->CO2);
 		}
@@ -163,13 +145,6 @@ void IRAM_ATTR dataReady() {
 	}
 }
 
-void PlayTone(int pTone, int pDuration) {
-	if (IsMuted) { return; }
-	Serial.println("In tone");
-	ledcWriteTone(channel, pTone);
-	delay(pDuration);
-	ledcWriteTone(channel, 0);
-}
 /*
  * setup function
  */
@@ -180,25 +155,21 @@ void setup(void) {
 	//touch.begin();
 	//touch.setRotation(1);
 
-
 	wifiMulti.addAP(ssidManni24, passwordManni24);
 	wifiMulti.addAP(ssidS24, passwordS24);
 	wifiMulti.addAP(ssidDevWL, passwordDevWL);
 	wifiMulti.addAP(ssidHUA, passwordHUA);
 
 	Serial.println("");
-	if (wifiMulti.run() == WL_CONNECTED)
-	{
+	if (wifiMulti.run() == WL_CONNECTED) {
 		Serial.println("");
 		Serial.println("WiFiMulti connected");
 	}
-	else
-	{
+	else {
 		// Connect to WiFi network
 		WiFi.begin(ssidManni24, passwordManni24);
 		// Wait for connection
-		while (WiFi.status() != WL_CONNECTED)
-		{
+		while (WiFi.status() != WL_CONNECTED) {
 			delay(500);
 			Serial.print(".");
 		}
@@ -212,11 +183,9 @@ void setup(void) {
 	Serial.println(WiFi.localIP());
 
 	/*use mdns for host name resolution*/
-	if (!MDNS.begin(host))
-	{ //http://esp32.local
+	if (!MDNS.begin(host)) { //http://esp32.local
 		Serial.println("Error setting up MDNS responder!");
-		while (1)
-		{
+		while (1) {
 			delay(1000);
 		}
 	}
@@ -237,17 +206,15 @@ void setup(void) {
 	_EE895Data->Ignore_CO2Raw = true;
 	_EE895Data->Ignore_TempF = true;
 	_EE895Data->Ignore_TempK = true;
-	_EE895Data->Ignore_PressurePSI=true;
+	_EE895Data->Ignore_PressurePSI = true;
 
 	_EE895 = new EE895(HWSERIAL_NUM, RX_PIN, TX_PIN);
 
 	//InitModBus();
 	//sound configuration
-	ledcSetup(channel, freq, resolution);
-	ledcAttachPin(21, channel);
-	ledcWrite(channel, 255);
-	ledcWriteTone(channel, 0);
-	Serial.println("Tone off");
+	_Beeper.Init();
+	_Beeper.IsMuted = true;
+	Serial.println("Tone inited");
 	//PlayTones();
 
 	xTaskCreatePinnedToCore(
@@ -262,13 +229,11 @@ void setup(void) {
 	Serial.println(_EE895->SetCO2Interval(10));
 	pinMode(25, INPUT_PULLUP);
 	attachInterrupt(digitalPinToInterrupt(25), dataReady, FALLING);
-	TheDisplay.SetDisplayBacklight(Brightness::LOW_6);
+	TheDisplay.SetDisplayBacklight(Brightness::NORM_1);
 }
 
-boolean reconnect()
-{
-	if (PSClient.connect("arduinoClient"))
-	{
+boolean reconnect() {
+	if (PSClient.connect("arduinoClient")) {
 		// Once connected, publish an announcement...
 		PSClient.publish("outTopic", "ON");
 		// ... and resubscribe
@@ -278,60 +243,44 @@ boolean reconnect()
 }
 bool wastouched = true;
 void handleTouch() {
-	return;
-	//TODO: add SPI lock
-	//bool istouched = touch.touched();
-	//if (istouched) {
-	//	TS_Point p = touch.getPoint();
-	//	Serial.print("x = ");
-	//	Serial.print(p.x);
-	//	Serial.print(", y = ");
-	//	Serial.println(p.y);
-	//}
-	//else {
-	//	if (wastouched) {
-	//		Serial.println("End Touch");
-	//	}
-	//}
-	//wastouched = istouched;
+	int nErg=TheDisplay.HandleTouch();
+	if (!nErg < 0) {
+		// button released
+	}
+	else if (nErg > 0) {
+		_Beeper.PlayKeyTone();
+		Serial.printf("Key %d pressed\n", nErg);
+	}
 }
-int _LastSecond=-1;
+int _LastSecond = -1;
 struct tm curTimeInfo;
-void loop(void)
-{
-	if (wifiMulti.run() != WL_CONNECTED)
-	{
+void loop(void) {
+	if (wifiMulti.run() != WL_CONNECTED) {
 		Serial.println("WiFi not connected!");
 		delay(1000);
 	}
-	else
-	{
-		if (PSClient.connected())
-		{
+	else {
+		if (PSClient.connected()) {
 			long now1 = millis();
-			if (now1 - lastSend > 10000)
-			{
+			if (now1 - lastSend > 10000) {
 				lastSend = now1;
-				if (lastTopic == "ON")
-				{
+				if (lastTopic == "ON") {
 					lastTopic = "OFF";
 				}
-				else
-				{
+				else {
 					lastTopic = "ON";
 				}
 				PSClient.publish("outTopic", lastTopic);
 			}
-		PSClient.loop();
+			PSClient.loop();
 		}
-		if (!getLocalTime(&curTimeInfo))
-		{
+		if (!getLocalTime(&curTimeInfo)) {
 			Serial.println("Failed to obtain time in loop");
 		}
 		else {
 			if (_LastSecond != curTimeInfo.tm_sec) {
 				_LastSecond = curTimeInfo.tm_sec;
-				//TheDisplay.WriteTimeAndDate(&curTimeInfo);
+				TheDisplay.WriteTimeAndDate(&curTimeInfo);
 			}
 		}
 
