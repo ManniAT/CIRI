@@ -13,9 +13,10 @@ MyButton::MyButton(void) {
 // Classic initButton() function: pass center & size
 void MyButton::initButton(
     TFT_eSPI* gfx, int16_t x, int16_t y, uint16_t w, uint16_t h,
-    uint16_t outline, uint16_t fill, uint16_t textcolor,
+    uint16_t outline, uint16_t fill, uint16_t textcolor, uint16_t disabled,
     char* label, uint8_t textsize)
 {
+    _disabledColor = disabled;
     // Tweak arguments and pass to the newer initButtonUL() function...
     initButtonUL(gfx, x - (w / 2), y - (h / 2), w, h, outline, fill,
         textcolor, label, textsize);
@@ -24,9 +25,10 @@ void MyButton::initButton(
 // Newer function instead accepts upper-left corner & size
 void MyButton::initButtonUL(
     TFT_eSPI* gfx, int16_t x1, int16_t y1, uint16_t w, uint16_t h,
-    uint16_t outline, uint16_t fill, uint16_t textcolor,
+    uint16_t outline, uint16_t fill, uint16_t textcolor, 
     char* label, uint8_t textsize)
 {
+    IsEnabled = true;
     _x1 = x1;
     _y1 = y1;
     _w = w;
@@ -49,9 +51,8 @@ void MyButton::setLabelDatum(int16_t x_delta, int16_t y_delta, uint8_t datum)
 
 void MyButton::drawButton(bool inverted, String long_name) {
     uint16_t fill, outline, text;
-
-    if (!inverted) {
-        fill = _fillcolor;
+    if (!inverted ) {
+        fill = IsEnabled ? _fillcolor : _disabledColor;
         outline = _outlinecolor;
         text = _textcolor;
     }

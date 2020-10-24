@@ -241,7 +241,6 @@ boolean reconnect() {
 	}
 	return PSClient.connected();
 }
-bool wastouched = true;
 void handleTouch() {
 	int nErg=TheDisplay.HandleTouch();
 	if (!nErg < 0) {
@@ -250,6 +249,11 @@ void handleTouch() {
 	else if (nErg > 0) {
 		_Beeper.PlayKeyTone();
 		Serial.printf("Key %d pressed\n", nErg);
+		if (nErg == BRIGHT_UP_KEY || nErg == BRIGHT_DOWN_KEY) {
+			TheDisplay.ChangeDisplayBacklight(nErg == BRIGHT_UP_KEY);
+			TheDisplay.DisOrEnableButton(BRIGHT_UP_KEY, !TheDisplay.IsCurBrightnessFull());
+			TheDisplay.DisOrEnableButton(BRIGHT_DOWN_KEY, !TheDisplay.IsCurBrightnessOff());
+		}
 	}
 }
 int _LastSecond = -1;

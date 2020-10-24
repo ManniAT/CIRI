@@ -2,17 +2,10 @@
 //#include <Arduino.h>
 #include <SPI.h>
 
-
-
-// This is the file name used to store the calibration data
-// You can change this to create new calibration files.
-// The SPIFFS file name must start with "/".
-#define CALIBRATION_FILE "/TouchCalData1"
-
-// Set REPEAT_CAL to true instead of false to run calibration
-// again, otherwise it will only be done once.
-// Repeat calibration if you change the screen rotation.
-#define REPEAT_CAL true
+#define TS_MINX 220
+#define TS_MINY 330
+#define TS_MAXX 3650
+#define TS_MAXY 3850
 
 // Number length, buffer for storing it and character index
 #define NUM_LEN 12
@@ -34,7 +27,6 @@ uint8_t numberIndex = 0;
 
 //avoid loading of touch code by not defining the TOUCH_CS
 //#define TOUCH_CS 14     // Chip select pin (T_CS) of touch screen
-
 
 #define LOAD_GLCD   // Font 1. Original Adafruit 8 pixel font needs ~1820 bytes in FLASH
 #define LOAD_FONT2  // Font 2. Small 16 pixel high font, needs ~3534 bytes in FLASH, 96 characters
@@ -68,11 +60,7 @@ typedef struct { // Data stored for FONT AS A WHOLE:
 #define SMOOTH_FONT
 
 // #define SPI_FREQUENCY  20000000
-					   
 #define SPI_FREQUENCY  27000000
-// #define SPI_FREQUENCY  40000000
-// #define SPI_FREQUENCY  55000000 // STM32 SPI1 only (SPI2 maximum is 27MHz)
-// #define SPI_FREQUENCY  80000000
 
 // Optional reduced SPI frequency for reading TFT
 //#define SPI_READ_FREQUENCY  20000000
@@ -95,8 +83,9 @@ TFT_eSPI tft = TFT_eSPI();
 #define MYTOUCH_IRQ 2
 XPT2046_Touchscreen _Touch(MYTOUCH_CS);
 //XPT2046_Touchscreen _Touch(MYTOUCH_CS, MYTOUCH_IRQ);
-
-MyButton key[4];
+#define BRIGHT_DOWN_KEY 1
+#define BRIGHT_UP_KEY 2
+MyButton* key[4];
 
 // Keypad start position, key sizes and spacing
 #define KEY_X 40 // Centre of key
@@ -115,7 +104,6 @@ MyButton key[4];
 #define TFT_LED_CHANNEL 2
 
 #define LABEL_Y_OFFS	2
-
 
 const char* DATE_TIME_FORMAT = "%e.%b.%Y      %H:%M:%S";
 
@@ -141,42 +129,48 @@ private:
 	const int PressureY = 60;
 	const int PressureMBarYOffset = 6;
 	const int PressurePSIYOffset = 5;
+	SemaphoreHandle_t _LockMutex;
 	void MapTouch(int16_t& tsxraw, int16_t& tsyraw);
-
+	Brightness _CurBrightness=Brightness::NORM_1;
 	void DrawKeyFirst() {
-		uint8_t row = 0;
 		uint8_t col = 0;
 		tft.setFreeFont(&FreeSansBold12pt7b);
-		key[0].initButton(&tft, KEY_X + col * (KEY_W + KEY_SPACING_X),
-			KEY_YOFFS + KEY_Y + row * (KEY_H + KEY_SPACING_Y), // x, y, w, h, outline, fill, text
-			KEY_W, KEY_H, TFT_WHITE, ILI9341_BLUE, TFT_WHITE,
+		key[0] = new MyButton();
+		key[1] = new MyButton();
+		key[2] = new ToggleButton();
+		key[3] = new MyButton();
+		key[0]->initButton(&tft, KEY_X + col * (KEY_W + KEY_SPACING_X),
+			KEY_YOFFS + KEY_Y, // x, y, w, h, outline, fill, text
+			KEY_W, KEY_H, TFT_WHITE, ILI9341_BLUE, TFT_WHITE, ILI9341_LIGHTGREY,
 			"-", KEY_TEXTSIZE);
-		key[0].setLabelDatum(0, LABEL_Y_OFFS);
-		key[0].drawButton();
+		key[0]->setLabelDatum(0, LABEL_Y_OFFS);
+		key[0]->drawButton();
 		col = 1;
-		key[1].initButton(&tft, KEY_X + col * (KEY_W + KEY_SPACING_X),
-			KEY_YOFFS + KEY_Y + row * (KEY_H + KEY_SPACING_Y), // x, y, w, h, outline, fill, text
-			KEY_W, KEY_H, TFT_WHITE, ILI9341_BLUE, TFT_WHITE,
+		key[1]->initButton(&tft, KEY_X + col * (KEY_W + KEY_SPACING_X),
+			KEY_YOFFS + KEY_Y, // x, y, w, h, outline, fill, text
+			KEY_W, KEY_H, TFT_WHITE, ILI9341_BLUE, TFT_WHITE, ILI9341_LIGHTGREY,
 			"+", KEY_TEXTSIZE);
-		key[1].setLabelDatum(0, LABEL_Y_OFFS);
-		key[1].drawButton();
+		key[1]->setLabelDatum(0, LABEL_Y_OFFS);
+		key[1]->drawButton();
 		col = 2;
-		key[2].initButton(&tft, KEY_X + col * (KEY_W + KEY_SPACING_X),
-			KEY_YOFFS + KEY_Y + row * (KEY_H + KEY_SPACING_Y), // x, y, w, h, outline, fill, text
-			KEY_W, KEY_H2, TFT_WHITE, ILI9341_BLUE, TFT_WHITE,
-			"S", KEY_TEXTSIZE);
-		key[2].setLabelDatum(0, LABEL_Y_OFFS);
-		key[2].drawButton();
+		((ToggleButton*) key[2])->initButton(&tft, KEY_X + col * (KEY_W + KEY_SPACING_X),
+			KEY_YOFFS + KEY_Y, // x, y, w, h, outline, fill, text
+			KEY_W, KEY_H2, 
+			TFT_WHITE, ILI9341_DARKGREY, TFT_WHITE,
+			TFT_WHITE, ILI9341_DARKGREY, TFT_WHITE,
+			ILI9341_LIGHTGREY,
+			"M", "S", KEY_TEXTSIZE);
+		key[2]->setLabelDatum(0, LABEL_Y_OFFS);
+		key[2]->drawButton();
 		col = 3;
-		key[3].initButton(&tft, KEY_X + col * (KEY_W + KEY_SPACING_X2),
-			KEY_YOFFS + KEY_Y + row * (KEY_H + KEY_SPACING_Y), // x, y, w, h, outline, fill, text
-			KEY_W, KEY_H2, TFT_WHITE, ILI9341_LIGHTGREY, TFT_WHITE,
+		key[3]->initButton(&tft, KEY_X + col * (KEY_W + KEY_SPACING_X2),
+			KEY_YOFFS + KEY_Y, // x, y, w, h, outline, fill, text
+			KEY_W, KEY_H2, TFT_WHITE, ILI9341_NAVY, TFT_WHITE, ILI9341_LIGHTGREY,
 			"F", KEY_TEXTSIZE);
-		key[3].setLabelDatum(0, LABEL_Y_OFFS);
-		key[3].drawButton();
+		key[3]->setLabelDatum(0, LABEL_Y_OFFS);
+		key[3]->drawButton();
 	}
-	
-	SemaphoreHandle_t _LockMutex;
+
 	void WriteState(int16_t pXPos, uint32_t pBackColor, uint32_t pTextColor, const char* pText, bool pUseMutex) {
 		if (pUseMutex) {
 			if ((xSemaphoreTake(_LockMutex, portTICK_PERIOD_MS * 500)) != pdTRUE) {
@@ -219,11 +213,35 @@ private:
 	void WriteBad(bool pUseMutex) { WriteState(BadX, ILI9341_ORANGE, ILI9341_BLACK, "BAD", pUseMutex); }
 	void WriteAlert(bool pUseMutex) { WriteState(AlertX, ILI9341_RED, ILI9341_WHITE, "ALERT", pUseMutex); }
 	void WriteStateWithSetMutex(FSMState pState);
+	void SetCurDisplayBacklight() { ledcWrite(TFT_LED_CHANNEL, 255 - (byte)_CurBrightness); }
 	bool WasTouched;
 public:
+	void DisOrEnableButton(int pButtonNum, bool pIsEnabled);
+	bool IsCurBrightnessFull() {		return(_CurBrightness == Brightness::FULL);	}
+	bool IsCurBrightnessOff() { return(_CurBrightness == Brightness::OFF); }
 	int HandleTouch();
-	void SetDisplayBacklight(Brightness pBright) { ledcWrite(TFT_LED_CHANNEL, 255 - (byte)pBright); }
-	void SetDisplayBacklight(byte  pLevel) { SetDisplayBacklight((Brightness)pLevel); }
+	void SetDisplayBacklight(Brightness pBright) {
+		_CurBrightness = pBright; 
+		SetCurDisplayBacklight();
+	}
+	bool ChangeDisplayBacklight(bool bUp) { 
+		if (bUp) {
+			if (_CurBrightness == Brightness::FULL) {
+				return(false);
+			}
+			Serial.println(_CurBrightness);
+			_CurBrightness++;
+			Serial.println(_CurBrightness);
+		}
+		else{
+			if (_CurBrightness == Brightness::OFF) {
+				return(false);
+			}
+			_CurBrightness--;
+		}
+		SetCurDisplayBacklight();
+		return(true);
+	}
 	void WriteCO2(short pValue);
 	void WriteCO2(FSMState pState, short pValue);
 	void WriteTemp(float pValue, const char* pUnit);
@@ -244,8 +262,7 @@ public:
 		DrawKeyFirst();
 	}
 };
-void MyDisplay::WriteTimeAndDate(struct tm* timeinfo)
-{
+void MyDisplay::WriteTimeAndDate(struct tm* timeinfo) {
 	if ((xSemaphoreTake(_LockMutex, portTICK_PERIOD_MS * 500)) != pdTRUE) {
 		Serial.println("Got no mutex in WriteTimeAndDate");
 		return;
@@ -259,8 +276,7 @@ void MyDisplay::WriteTimeAndDate(struct tm* timeinfo)
 	xSemaphoreGive(_LockMutex);
 }
 
-inline void MyDisplay::WriteCO2WithSetMutex(short pValue)
-{
+inline void MyDisplay::WriteCO2WithSetMutex(short pValue) {
 	char buffer[10];
 	if (pValue < 1000) {
 		sprintf(buffer, "  %d", pValue);
@@ -299,11 +315,29 @@ void MyDisplay::WriteStateWithSetMutex(FSMState pState) {
 		return;
 	}
 }
-void MapTouch(int16_t& tsxraw, int16_t& tsyraw, uint8_t pRotation);
+
+
+inline void MyDisplay::DisOrEnableButton(int pButtonNum, bool pIsEnabled) {
+	pButtonNum--;
+	if (pButtonNum < 0 || pButtonNum>4) {
+		return;
+	}
+	if (key[pButtonNum]->IsEnabled == pIsEnabled) {
+		return;
+	}
+	key[pButtonNum]->IsEnabled = pIsEnabled;
+	if ((xSemaphoreTake(_LockMutex, portTICK_PERIOD_MS * 500)) != pdTRUE) {
+		Serial.println("Got no mutex in DisOrEnable");
+		return;
+	}
+	tft.setFreeFont(&FreeSansBold12pt7b);
+	key[pButtonNum]->drawButton();
+	xSemaphoreGive(_LockMutex);
+}
 
 int MyDisplay::HandleTouch() {
 	if ((xSemaphoreTake(_LockMutex, portTICK_PERIOD_MS * 500)) != pdTRUE) {
-		Serial.println("Got no mutex in WriteCO2");
+		Serial.println("Got no mutex in HandleTouch");
 		return(0);
 	}
 
@@ -331,31 +365,31 @@ int MyDisplay::HandleTouch() {
 
 	bool bFontSet = false;
 	for (uint8_t nX = 0; nX < 4; nX++) {
-		if (bIsTouched && key[nX].contains(p.x, p.y)) {
-			key[nX].press(true);
+		if (bIsTouched && key[nX]->contains(p.x, p.y) && key[nX]->IsEnabled) {
+			key[nX]->press(true);
 		}
 		else {
-			key[nX].press(false);
+			key[nX]->press(false);
 		}
-		if (key[nX].justReleased()) {
+		if (key[nX]->justReleased()) {
 			if (nRet == 0) {	//may pressed - which matters more
-				nRet = -(nX+1);
+				nRet = -(nX + 1);
 			}
 			if (!bFontSet) {
 				tft.setFreeFont(&FreeSansBold12pt7b);
 				bFontSet = true;
 			}
-			Serial.printf("Y: %d   H: %d\n", key[nX]._y1, key[nX]._h);
-			key[nX].drawButton();
+			Serial.printf("Y: %d   H: %d\n", key[nX]->_y1, key[nX]->_h);
+			key[nX]->drawButton();
 		}
-		else if (key[nX].justPressed()) {
-				nRet = nX+1;
+		else if (key[nX]->justPressed()) {
+			nRet = nX + 1;
 
 			if (!bFontSet) {
 				tft.setFreeFont(&FreeSansBold12pt7b);
 				bFontSet = true;
 			}
-			key[nX].drawButton(true);
+			key[nX]->drawButton(true);
 		}
 	}
 	WasTouched = bIsTouched;
@@ -403,16 +437,6 @@ void MyDisplay::WriteTemp(float pValue, const char* pUnit) {
 	xSemaphoreGive(_LockMutex);
 }
 
-//#define TS_MINX 220
-//#define TS_MINY 330
-//#define TS_MAXX 3650
-//#define TS_MAXY 3850
-
-
-#define TS_MINX 220
-#define TS_MINY 330
-#define TS_MAXX 3650
-#define TS_MAXY 3850
 void MyDisplay::MapTouch(int16_t& tsxraw, int16_t& tsyraw) {
 	int16_t tsx;
 	int16_t tsy;

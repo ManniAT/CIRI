@@ -24,14 +24,36 @@ private:
 		return(DisplayBrights[pNum]);
 	}
 	Value _Value;
-	static const Value DisplayBrights[22];
+	static const Value DisplayBrights[21];
 public:
 	bool operator==(Brightness a) { return _Value == a._Value; }
+	bool operator==(Value a) { return _Value == a; }
 	bool operator!=(Brightness a) { return _Value != a._Value; }
+	Brightness& operator++(int) {
+		if (_Value < FULL) {
+			for (int nX = 0; nX < NumBrights-1; nX++) {
+				if (_Value == DisplayBrights[nX]) {
+					_Value = DisplayBrights[nX + 1]; 
+					break;
+				}
+			}
+		}
+		return(*this);
+	}
+	Brightness& operator--(int) {
+		if (_Value > OFF) {
+			for (int nX = 1; nX < NumBrights; nX++) {
+				if (_Value == DisplayBrights[nX]) {
+					_Value = DisplayBrights[nX - 1]; break;
+				}
+			}
+		}
+		return(*this);
+	}
 	operator byte() const { return((byte)_Value); }
-	static const int NumBrights = MAXINDEX(DisplayBrights);
+	static const int NumBrights = MAXINDEX(DisplayBrights)+1;
 };
 const Brightness::Value Brightness::DisplayBrights[] = {
 OFF,
 LOW_1, LOW_2, LOW_3, LOW_4, LOW_5, LOW_6, LOW_7, LOW_8, LOW_9, LOW_10,
-NORM_1, NORM_2, NORM_3, NORM_4, NORM_5, NORM_6, NORM_6, NORM_7, NORM_8, NORM_9, FULL };
+NORM_1, NORM_2, NORM_3, NORM_4, NORM_5, NORM_6, NORM_7, NORM_8, NORM_9, FULL };
