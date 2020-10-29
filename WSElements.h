@@ -1,6 +1,6 @@
 ﻿#include <WebServer.h>
 
-WebServer server(80);
+WebServer MyWebServer(80);
 
 /*
  * Login page
@@ -142,11 +142,11 @@ void SetHPValues(float pTemp, float pMBar, ushort pCO2) {
 
 void InitOTAServer(){
 	/*return index page which is stored in serverIndex */
-	server.on("/", HTTP_GET, handleRoot);
-	server.on("/ota", HTTP_GET, handleOTA);
+	MyWebServer.on("/", HTTP_GET, handleRoot);
+	MyWebServer.on("/ota", HTTP_GET, handleOTA);
 	/*handling uploading firmware file */
-	server.on("/update", HTTP_POST, handleUpload1, handleUpload2);
-	server.begin();	
+	MyWebServer.on("/update", HTTP_POST, handleUpload1, handleUpload2);
+	MyWebServer.begin();
 }
 //void StartWebServer(){
 //	server.begin();

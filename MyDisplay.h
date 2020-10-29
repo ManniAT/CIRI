@@ -85,6 +85,9 @@ XPT2046_Touchscreen _Touch(MYTOUCH_CS);
 //XPT2046_Touchscreen _Touch(MYTOUCH_CS, MYTOUCH_IRQ);
 #define BRIGHT_DOWN_KEY 1
 #define BRIGHT_UP_KEY 2
+#define MUTE_KEY 3
+#define SWITCH_KEY 4
+
 MyButton* key[4];
 
 // Keypad start position, key sizes and spacing
@@ -138,7 +141,7 @@ private:
 		key[0] = new MyButton();
 		key[1] = new MyButton();
 		key[2] = new ToggleButton();
-		key[3] = new MyButton();
+		key[3] = new ToggleButton();
 		key[0]->initButton(&tft, KEY_X + col * (KEY_W + KEY_SPACING_X),
 			KEY_YOFFS + KEY_Y, // x, y, w, h, outline, fill, text
 			KEY_W, KEY_H, TFT_WHITE, ILI9341_BLUE, TFT_WHITE, ILI9341_LIGHTGREY,
@@ -157,16 +160,19 @@ private:
 			KEY_YOFFS + KEY_Y, // x, y, w, h, outline, fill, text
 			KEY_W, KEY_H2, 
 			TFT_WHITE, ILI9341_DARKGREY, TFT_WHITE,
-			TFT_WHITE, ILI9341_DARKGREY, TFT_WHITE,
+			TFT_WHITE, ILI9341_DARKGREY, TFT_RED,
 			ILI9341_LIGHTGREY,
-			"M", "S", KEY_TEXTSIZE);
+			"S", "M", KEY_TEXTSIZE);
 		key[2]->setLabelDatum(0, LABEL_Y_OFFS);
 		key[2]->drawButton();
 		col = 3;
-		key[3]->initButton(&tft, KEY_X + col * (KEY_W + KEY_SPACING_X2),
+		((ToggleButton*)key[3])->initButton(&tft, KEY_X + col * (KEY_W + KEY_SPACING_X2),
 			KEY_YOFFS + KEY_Y, // x, y, w, h, outline, fill, text
-			KEY_W, KEY_H2, TFT_WHITE, ILI9341_NAVY, TFT_WHITE, ILI9341_LIGHTGREY,
-			"F", KEY_TEXTSIZE);
+			KEY_W, KEY_H2,
+			TFT_WHITE, ILI9341_NAVY, TFT_WHITE,
+			TFT_WHITE, ILI9341_DARKGREY, TFT_WHITE,
+			ILI9341_LIGHTGREY,
+			"Off", "On", KEY_TEXTSIZE);
 		key[3]->setLabelDatum(0, LABEL_Y_OFFS);
 		key[3]->drawButton();
 	}
@@ -216,6 +222,8 @@ private:
 	void SetCurDisplayBacklight() { ledcWrite(TFT_LED_CHANNEL, 255 - (byte)_CurBrightness); }
 	bool WasTouched;
 public:
+	bool GetButtonStatus(int pButtonNum);
+	void SetButtonStatus(int pButtonNum, bool pIsActive);
 	void DisOrEnableButton(int pButtonNum, bool pIsEnabled);
 	bool IsCurBrightnessFull() {		return(_CurBrightness == Brightness::FULL);	}
 	bool IsCurBrightnessOff() { return(_CurBrightness == Brightness::OFF); }
@@ -333,6 +341,42 @@ inline void MyDisplay::DisOrEnableButton(int pButtonNum, bool pIsEnabled) {
 	tft.setFreeFont(&FreeSansBold12pt7b);
 	key[pButtonNum]->drawButton();
 	xSemaphoreGive(_LockMutex);
+}
+
+
+void MyDisplay::SetButtonStatus(int pButtonNum, bool pIsActive) {
+	//only these two are toggle buttons
+	if (pButtonNum != MUTE_KEY && pButtonNum != SWITCH_KEY) {
+		return;
+	}
+	pButtonNum--;
+	if (pButtonNum < 0 || pButtonNum>4) {
+		return;
+	}
+	ToggleButton* pButton = (ToggleButton * )key[pButtonNum];
+	if (pButton->IsActive() == pIsActive) {
+		return;
+	}
+	pButton->SetActive(pIsActive);
+	if ((xSemaphoreTake(_LockMutex, portTICK_PERIOD_MS * 500)) != pdTRUE) {
+		Serial.println("Got no mutex in DisOrEnable");
+		return;
+	}
+	tft.setFreeFont(&FreeSansBold12pt7b);
+	pButton->drawButton();
+	xSemaphoreGive(_LockMutex);
+}
+
+bool MyDisplay::GetButtonStatus(int pButtonNum) {
+	//only these two are toggle buttons
+	if (pButtonNum != MUTE_KEY && pButtonNum != SWITCH_KEY) {
+		return(false);
+	}
+	pButtonNum--;
+	if (pButtonNum < 0 || pButtonNum>4) {
+		return(false);
+	}
+	return(((ToggleButton*)key[pButtonNum])->IsActive());
 }
 
 int MyDisplay::HandleTouch() {

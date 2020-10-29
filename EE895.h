@@ -28,6 +28,8 @@ Pressure p* 		psi 	100		4102				0x1005
 const uint8_t SLAVE_ID = 0x5F;
 
 class EE895_Reading {
+private:
+	const char _JSONTemplate[120] = "{\"TempC\": %0.1f, \"TempF\": %0.1f, \"TempK\": %0.1f, \"CO2\": %d, \"CO2Raw\": %d, \"PMbar\": %0.1f, \"PPSI\": %0.1f}";
 public:
 	bool Ignore_TempC = false;
 	bool Ignore_TempF = false;
@@ -51,12 +53,20 @@ public:
 	short CO2;
 	short CO2Raw;
 	float PressureMBar;
-	float PressurePSI;	
+	float PressurePSI;
+	/// <summary>
+	/// Gets the current values in JSON.
+	/// </summary>
+	/// <param name="pBufferMin130Long">The buffer min130 long.</param>
+	void GetJSON(char* pBufferMin130Long) { sprintf(pBufferMin130Long, _JSONTemplate, TempC, TempF, TempK, CO2, CO2Raw, PressureMBar, PressurePSI); }
 };
 
-///Simple class to provide a EE895 representation
-///It provides 3 buffers to read it's data from modbus via a given method
-///the host creates an instance - gives it a reading function and periodically call LoadData on the instance
+
+/// <summary>
+/// Simple class to provide a EE895 representation
+/// Implements the <see cref="EE895_Reading" /> as internal buffer
+/// The host creates an instance and periodically calls <see <see cref="ReadData"/> to obtain the data from the sensor.
+/// </summary>
 class EE895 : public EE895_Reading
 {
 private:
@@ -95,16 +105,29 @@ private:
 		MBNode.begin(SLAVE_ID, *SerialController);
 	}
 public:
-	static const int USETempC = 1;
-	static const int USETempF = 2;
-	static const int USETempK = 3;
-	static const int USECO2 = 4;
-	static const int USECO2Raw = 5;
-	static const int USEPressureMBar = 6;
-	static const int USEPressurePSI = 7;
+	/// <summary>
+	/// Reads the values from Sensor to the internal buffer
+	/// </summary>
+	/// <returns>bool.</returns>
 	bool ReadValues();
+	/// <summary>
+	/// Copies the internal values to a given <see cref="EE895_Reading"/>. 
+	/// </summary>
+	/// <param name="pReading">Pointer to a <see cref="EE895_Reading"/>.</param>
+	/// <returns>True if something (not set to ignore) changed.</returns>
 	bool ReadDataValues(EE895_Reading* pReading);
+	/// <summary>
+	/// Sets the c o2 interval.
+	/// </summary>
+	/// <param name="pSeconds">The seconds.</param>
+	/// <returns>bool.</returns>
 	bool SetCO2Interval(uint16_t pSeconds);
+	/// <summary>
+	/// Initializes a new instance of the <see cref="EE895"/> class.
+	/// </summary>
+	/// <param name="pPortNum">The port number.</param>
+	/// <param name="pRXPin">The receive pin.</param>
+	/// <param name="pTXPin">The transmit pin.</param>
 	EE895(int pPortNum, int8_t pRXPin, int8_t pTXPin) {
 		InitModbus(pPortNum, pRXPin, pTXPin);
 		_LockMutex = xSemaphoreCreateMutex();

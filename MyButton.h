@@ -67,7 +67,7 @@ public:
 		MyButton::initButton(gfx, x, y, w, h, _outlinecolorInActive, _fillcolorInActive, _textcolorInActive, disabled, label, textsize);
 	}
 
-	bool IsAvtice() { return(_IsActive); }
+	bool IsActive() { return(_IsActive); }
 	void SetActive(bool pIsActive) {
 		if (_IsActive == pIsActive) {
 			return;
