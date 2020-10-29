@@ -69,7 +69,7 @@ struct tm curTimeInfo;
 /// </summary>
 /// <param name="pTopic">The topic.</param>
 /// <param name="pData">The data.</param>
-void MQTTCallback(char* pTopic, char* pData) {
+void MQTTCallback(const char* pTopic, const char* pData) {
 	Serial.print("Message arrived [");
 	Serial.print(pTopic);
 	Serial.print("]: ");

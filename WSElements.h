@@ -87,24 +87,24 @@ void handleRoot()
 	strHPResult.replace("$$T$$", strTemp);
 	strHPResult.replace("$$C$$", strCO2);
 	strHPResult.replace("$$M$$", strMBar);
-	server.sendHeader("Connection", "close");
-	server.send(200, "text/html", strHPResult);
+	MyWebServer.sendHeader("Connection", "close");
+	MyWebServer.send(200, "text/html", strHPResult);
 }
 void handleOTA()
 {
-	server.sendHeader("Connection", "close");
-	server.send(200, "text/html", otaPage);
+	MyWebServer.sendHeader("Connection", "close");
+	MyWebServer.send(200, "text/html", otaPage);
 }
 void handleUpload1()
 {
-	server.sendHeader("Connection", "close");
-	server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+	MyWebServer.sendHeader("Connection", "close");
+	MyWebServer.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
 	
 	ESP.restart();
 }
 void handleUpload2()
 {
-	HTTPUpload &upload = server.upload();
+	HTTPUpload &upload = MyWebServer.upload();
 	if (upload.status == UPLOAD_FILE_START)
 	{
 		Serial.printf("Update: %s\n", upload.filename.c_str());
