@@ -74,7 +74,7 @@ public:
 		return(_PSClient.connect(pClientID, pUser, pPassword));
 	}
 	bool Subscribe(const char* pTopic) {
-		_SubscribedTopic= new char[strlen(pTopic) + 1];
+		_SubscribedTopic = new char[strlen(pTopic) + 1];
 		strcpy(_SubscribedTopic, pTopic);
 		_PSClient.subscribe(_SubscribedTopic);
 	}
